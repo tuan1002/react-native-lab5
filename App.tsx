@@ -1,131 +1,122 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
+  SafeAreaView,
   Text,
-  useColorScheme,
+  TextInput,
+  Button,
+  FlatList,
   View,
+  TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+// Định nghĩa kiểu dữ liệu Todo
+type Todo = {
+  id: string;
+  text: string;
+  createdAt: FirebaseFirestoreTypes.Timestamp | null;
+};
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+export default function App() {
+  const [todo, setTodo] = useState(''); // State để lưu input của người dùng
+  const [todos, setTodos] = useState<Todo[]>([]); // State để lưu danh sách todo từ Firestore
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+  // Lấy danh sách todo từ Firestore khi component được render
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('todos')
+      .orderBy('createdAt', 'desc') // Sắp xếp theo thời gian tạo
+      .onSnapshot(
+        snapshot => {
+          if (snapshot && snapshot.docs) {
+            // Chuyển đổi dữ liệu từ snapshot thành danh sách todo
+            const items: Todo[] = snapshot.docs.map(doc => ({
+              id: doc.id, // Firebase tự động tạo ID cho mỗi tài liệu
+              text: doc.data().text,
+              createdAt: doc.data().createdAt || null, // Kiểm tra và lấy thời gian tạo
+            }));
+            setTodos(items); // Cập nhật danh sách todos
+          } else {
+            console.error('Snapshot is empty or null');
+          }
+        },
+        error => {
+          console.error('Error fetching todos: ', error);
+        }
+      );
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+    return () => unsubscribe(); // Dọn dẹp khi component bị unmount
+  }, []);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  // Chức năng thêm todo vào Firestore
+  const addTodo = async () => {
+    if (todo.trim().length === 0) return; // Kiểm tra nếu ô input trống
+
+    await firestore().collection('todos').add({
+      text: todo,
+      createdAt: firestore.FieldValue.serverTimestamp(), // Thêm thời gian server
+    });
+
+    setTodo(''); // Xóa nội dung ô input sau khi thêm
   };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+  // Chức năng xóa todo khỏi Firestore
+  const deleteTodo = async (id: string) => {
+    await firestore().collection('todos').doc(id).delete();
+  };
+
+  // Chức năng render mỗi item trong FlatList
+  const renderItem = ({ item }: { item: Todo }) => (
+    <View style={styles.todoItem}>
+      <Text style={styles.todoText}>{item.text}</Text>
+      {item.createdAt && (
+        <Text style={styles.createdAtText}>
+          {item.createdAt.toDate().toLocaleString()} {/* Hiển thị thời gian */}
+        </Text>
+      )}
+      <TouchableOpacity onPress={() => deleteTodo(item.id)}>
+        <Text style={styles.deleteText}>X</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Firebase Todo App</Text>
+
+      {/* Ô input để thêm task mới */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Add a new task"
+          value={todo}
+          onChangeText={setTodo} // Cập nhật state `todo` khi người dùng nhập
+        />
+        <Button title="Add" onPress={addTodo} /> {/* Nút để thêm task */}
+      </View>
+
+      {/* Danh sách các todo */}
+      <FlatList
+        data={todos} // Danh sách todo từ state `todos`
+        keyExtractor={item => item.id} // Dùng `id` của mỗi item làm khóa duy nhất
+        renderItem={renderItem} // Hàm render mỗi item
       />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
+// Style cho ứng dụng
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
+  inputContainer: { flexDirection: 'row', marginBottom: 12 },
+  input: { flex: 1, borderWidth: 1, borderColor: '#ccc', marginRight: 8, padding: 8 },
+  todoItem: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    padding: 12, backgroundColor: '#f9f9f9', marginBottom: 8, borderRadius: 6,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
+  todoText: { fontSize: 16 },
+  createdAtText: { fontSize: 12, color: '#666' }, // Hiển thị thời gian với kích thước nhỏ
+  deleteText: { color: 'red', fontWeight: 'bold' },
 });
-
-export default App;

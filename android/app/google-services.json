@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "541540695652",
+    "project_id": "reactnative-190cf",
+    "storage_bucket": "reactnative-190cf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541540695652:android:1895588ce9be8f917a2971",
+        "android_client_info": {
+          "package_name": "com.toodoapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDljdbqsRoMwgbsCKfTORSwmEkwsixKaiM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
